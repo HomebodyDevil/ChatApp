@@ -8,9 +8,8 @@ int main() {
 	try {
 		constexpr unsigned short port = 9000;
 
-
 		boost::asio::io_context ioContext;
-		auto workGuard = boost::asio::make_work_guard(ioContext);
+		auto workGuard = boost::asio::make_work_guard(ioContext);	// 꺼지지 않게.
 
 		ChatServer chatServer(ioContext, port);
 

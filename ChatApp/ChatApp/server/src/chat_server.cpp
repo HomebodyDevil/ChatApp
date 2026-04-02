@@ -12,6 +12,35 @@ ChatServer::ChatServer(boost::asio::io_context& ioContext, unsigned short port)
 	StartAccept();
 }
 
+void ChatServer::Join(const std::shared_ptr<ClientSession>& session)
+{
+	std::lock_guard<std::mutex> lock(sessionsMutex_);
+
+	sessions_.insert(session);
+	std::cout << "[Server] Session joined. Current sessions : " << sessions_.size() << '\n';
+}
+
+void ChatServer::Leave(const std::shared_ptr<ClientSession>& session)
+{
+	std::lock_guard<std::mutex> lock(sessionsMutex_);
+
+	sessions_.erase(session);
+	std::cout << "[Server] Sessions left. Current sessions : " << sessions_.size() << '\n';
+}
+
+void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)
+{
+	std::lock_guard<std::mutex> lock(sessionsMutex_);
+
+	for (const auto& session : sessions_) {		
+		if (fromSession != session) {
+			session->Send(message + '\n');
+		}
+	}
+
+	std::cout << "[Broadcast] : " << message << '\n';
+}
+
 void ChatServer::StartAccept()
 {
 	acceptor_.async_accept(
@@ -24,7 +53,8 @@ void ChatServer::StartAccept()
 						<< socket.remote_endpoint().port()
 						<< '\n';
 
-					auto session = std::make_shared<ClientSession>(std::move(socket));
+					auto session = std::make_shared<ClientSession>(std::move(socket), this);
+					Join(session);
 					session->Start();
 				}
 				else {
