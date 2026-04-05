@@ -16,17 +16,27 @@ public:
 	void Start();
 	void Send(const std::string& message);
 
+	std::string GetNickname() const;
+	bool HasNickname() const;
+
 private:
 	void DoRead();
 	void DoWrite();
 	void Close();
+	void HandleLine(const std::string& line);
 
 private:
 	boost::asio::ip::tcp::socket socket_;
 	boost::asio::streambuf buffer_;
 	ChatServer* server_;
 	std::deque<std::string> writeQueue_;
+	std::string nickname_;
+	bool hasJoined_ = false;
+
+private:
+	bool isClosed_ = false;
 
 private:
 	std::mutex writeQueueMutex_;
+	std::mutex closeMutex_;
 };

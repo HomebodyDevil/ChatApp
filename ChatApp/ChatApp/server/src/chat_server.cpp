@@ -24,22 +24,51 @@ void ChatServer::Leave(const std::shared_ptr<ClientSession>& session)
 {
 	std::lock_guard<std::mutex> lock(sessionsMutex_);
 
+	std::string packet = session->GetNickname() + " left";
+	BroadcastSystem(packet);
+
 	sessions_.erase(session);
 	std::cout << "[Server] Sessions left. Current sessions : " << sessions_.size() << '\n';
 }
 
-void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)
+void ChatServer::BroadcastRaw(const std::shared_ptr<ClientSession> fromSession_, const std::string& message)
 {
 	std::lock_guard<std::mutex> lock(sessionsMutex_);
 
-	for (const auto& session : sessions_) {		
-		if (fromSession != session) {
-			session->Send(message + '\n');
-		}
+	for (const auto& session : sessions_) {
+		if (fromSession_ != nullptr && session == fromSession_) continue;
+		session->Send(message + '\n');
 	}
-
-	std::cout << "[Broadcast] : " << message << '\n';
 }
+
+void ChatServer::BroadcastSystem(const std::string& message)
+{
+	std::string packet = "SYSTEM | " + message;
+	BroadcastRaw(nullptr, packet);
+
+	std::cout << "[System] " << message << '\n';
+}
+
+void ChatServer::BroadcastChat(const std::shared_ptr<ClientSession> fromSession_, const std::string& nickname, const std::string& message)
+{
+	std::string packet = nickname + ": " + message;
+	BroadcastRaw(fromSession_, packet);
+
+	std::cout << "[Chat] " << nickname << ": " << message << '\n';
+}
+
+//void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)
+//{
+//	std::lock_guard<std::mutex> lock(sessionsMutex_);
+//
+//	for (const auto& session : sessions_) {		
+//		if (fromSession != session) {
+//			session->Send(message + '\n');
+//		}
+//	}
+//
+//	std::cout << "[Broadcast] : " << message << '\n';
+//}
 
 void ChatServer::StartAccept()
 {

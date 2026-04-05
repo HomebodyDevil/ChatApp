@@ -14,7 +14,11 @@ public:
 
 	void Join(const std::shared_ptr<ClientSession>& session);
 	void Leave(const std::shared_ptr<ClientSession>& session);
-	void Broadcast(std::shared_ptr<ClientSession> session, const std::string& message);
+
+	void BroadcastRaw(const std::shared_ptr<ClientSession> fromSession_, const std::string& message);
+	void BroadcastSystem(const std::string& message);
+	void BroadcastChat(const std::shared_ptr<ClientSession> fromSession_, const std::string& nickname, const std::string& message);
+	//void Broadcast(std::shared_ptr<ClientSession> session, const std::string& message);
 
 private:
 	void StartAccept();

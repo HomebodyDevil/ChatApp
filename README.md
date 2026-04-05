@@ -49,7 +49,7 @@ Windows 환경을 기준으로 개발하며, 서버는 **Boost.Asio**, 클라이
 ### Client
 - **Language**: C#
 - **Framework**: .NET + WPF
-- **Architecture**: MVVM (권장)
+- **Architecture**: MVVM
 
 ### Common
 - **Protocol**: TCP 기반 텍스트 프로토콜 (초기) → JSON 프로토콜 (확장 가능)
@@ -65,6 +65,7 @@ Windows 환경을 기준으로 개발하며, 서버는 **Boost.Asio**, 클라이
                                 +-- Session Manager
                                 +-- Client Session
                                 +-- Broadcast Logic
+```
 
 ## 향후 개선 방향
 SSL/TLS 적용

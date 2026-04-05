@@ -33,6 +33,16 @@ void ClientSession::Send(const std::string& message)
 	}
 }
 
+std::string ClientSession::GetNickname() const
+{
+	return nickname_;
+}
+
+bool ClientSession::HasNickname() const
+{
+	return !nickname_.empty();
+}
+
 void ClientSession::DoRead()
 {
 	auto self = shared_from_this();
@@ -47,7 +57,10 @@ void ClientSession::DoRead()
 					std::cout << "[Session] Client disconnected normally\n";
 				}
 				else {
-					std::cerr << "[Session] Read Error " << ec.message() << '\n';
+					std::cerr << "[Session] Read Error " 
+						<< ", code= " << ec.value()
+						<< ", category= " << ec.category().name()
+						<< ", message= "  << ec.message() << '\n';
 				}
 
 				Close();
@@ -58,13 +71,13 @@ void ClientSession::DoRead()
 			std::string line;
 			std::getline(input, line);
 
-			std::cout << "[Recv - " << socket_.remote_endpoint() << "] : " << line << '\n';
-
-			if (server_ != nullptr) {
-				server_->Broadcast(shared_from_this(), line);
+			if (!line.empty() && line.back() == '\r') {
+				line.pop_back();
 			}
 
+			std::cout << "[Recv - " << socket_.remote_endpoint() << "] : " << line << '\n';
 
+			HandleLine(line);
 			DoRead();
 		}
 	);
@@ -72,10 +85,12 @@ void ClientSession::DoRead()
 
 void ClientSession::DoWrite()
 {
+	auto self = shared_from_this();
+
 	boost::asio::async_write(
 		socket_,
 		boost::asio::buffer(writeQueue_.front()),
-		[this](const boost::system::error_code& ec, size_t bytes_transferred) {
+		[this, self](const boost::system::error_code& ec, size_t bytes_transferred) {
 			if (ec) {
 				std::cerr << "[Session] Write Error : " << ec.message() << '\n';
 				Close();
@@ -85,10 +100,10 @@ void ClientSession::DoWrite()
 			{
 				std::lock_guard<std::mutex> lock(writeQueueMutex_);
 				writeQueue_.pop_front();
+			}
 
-				if (!writeQueue_.empty()) {
-					DoWrite();
-				}
+			if (!writeQueue_.empty()) {
+				DoWrite();
 			}
 		}
 	);
@@ -96,6 +111,11 @@ void ClientSession::DoWrite()
 
 void ClientSession::Close()
 {
+	std::lock_guard<std::mutex> lock(closeMutex_);
+
+	if (isClosed_) return;
+	isClosed_ = true;
+
 	boost::system::error_code ignoredEc;	// 에러 정보를 담을 변수.(형식/명시적으로만 사용)
 	socket_.shutdown(tcp::socket::shutdown_both, ignoredEc);	// 소켓의 송-수신을 모두 중단.		
 	socket_.close(ignoredEc);
@@ -103,4 +123,59 @@ void ClientSession::Close()
 	if (server_ != nullptr) {
 		server_->Leave(shared_from_this());
 	}
+}
+
+void ClientSession::HandleLine(const std::string& line)
+{
+	std::size_t delimeterPos = line.find('|');
+	if (delimeterPos == std::string::npos) {
+		Send("SYSTEM | Invalid command format\n");
+		return;
+	}
+
+	std::string command = line.substr(0, delimeterPos);
+	std::string payload = line.substr(delimeterPos + 1);
+
+	if (command == "NICK") {
+		if (payload.empty()) {
+			Send("SYSTEM | Nickname cannot be empty\n");
+			return;
+		}
+
+		bool firstJoin = nickname_.empty();
+		nickname_ = payload;
+
+		if (firstJoin) {
+			hasJoined_ = true;
+			Send("SYSTEM | Nickname registered: " + nickname_ + '\n');
+			if (server_ != nullptr) {
+				server_->BroadcastSystem(nickname_ + " joined");
+			}
+		}
+		else {
+			Send("SYSTEM | Nickname change to: " + nickname_ + '\n');
+		}
+
+		return;
+	}
+
+	if (command == "MSG") {
+		if (nickname_.empty()) {
+			Send("SYSTEM | Register nickname first using \"NICK|YourName\"\n");
+			return;
+		}
+
+		if (payload.empty()) {
+			Send("SYSTEM | Message cannot be empty\n");
+			return;
+		}
+
+		if (server_ != nullptr) {
+			server_->BroadcastChat(shared_from_this(), nickname_, payload);
+		}
+
+		return;
+	}
+
+	Send("SYSTEM | Unknown command\n");
 }
