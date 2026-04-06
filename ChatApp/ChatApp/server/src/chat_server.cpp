@@ -43,18 +43,33 @@ void ChatServer::BroadcastRaw(const std::shared_ptr<ClientSession> fromSession_,
 
 void ChatServer::BroadcastSystem(const std::string& message)
 {
-	std::string packet = "SYSTEM | " + message;
+	std::string packet = "SYSTEM| " + message;
 	BroadcastRaw(nullptr, packet);
 
 	std::cout << "[System] " << message << '\n';
 }
 
-void ChatServer::BroadcastChat(const std::shared_ptr<ClientSession> fromSession_, const std::string& nickname, const std::string& message)
+void ChatServer::BroadcastChat(
+	const std::shared_ptr<ClientSession> fromSession_, 
+	const std::string& nickname, 
+	const std::string& message)
 {
-	std::string packet = nickname + ": " + message;
+	std::string packet = "CHAT|" + nickname + '|' + message;
 	BroadcastRaw(fromSession_, packet);
 
 	std::cout << "[Chat] " << nickname << ": " << message << '\n';
+}
+
+bool ChatServer::IsNicknameAvailable(const std::string& nickname, const std::shared_ptr<ClientSession>& requester) const
+{
+	std::lock_guard<std::mutex> lock(sessionsMutex_);
+
+	for (const auto& session : sessions_) {
+		if (session == requester) continue;
+		if (session->HasNickname() && session->GetNickname() == nickname) return false;
+	}
+
+	return true;
 }
 
 //void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)

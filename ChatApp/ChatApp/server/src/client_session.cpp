@@ -86,6 +86,16 @@ void ClientSession::DoRead()
 void ClientSession::DoWrite()
 {
 	auto self = shared_from_this();
+	std::string messageToSend;
+
+	{
+		std::lock_guard<std::mutex> lock(writeQueueMutex_);
+		if (writeQueue_.empty()) {
+			return;
+		}
+
+		messageToSend = writeQueue_.front();
+	}
 
 	boost::asio::async_write(
 		socket_,
@@ -97,12 +107,17 @@ void ClientSession::DoWrite()
 				return;
 			}
 
+			bool hasMore = false;
 			{
 				std::lock_guard<std::mutex> lock(writeQueueMutex_);
-				writeQueue_.pop_front();
+
+				if (!writeQueue_.empty())
+					writeQueue_.pop_front();
+
+				hasMore = !writeQueue_.empty();
 			}
 
-			if (!writeQueue_.empty()) {
+			if (hasMore) {
 				DoWrite();
 			}
 		}
@@ -115,6 +130,10 @@ void ClientSession::Close()
 
 	if (isClosed_) return;
 	isClosed_ = true;
+
+	if (server_ != nullptr && hasJoined_ && !nickname_.empty()) {
+		server_->BroadcastSystem(nickname_ + " left");
+	}
 
 	boost::system::error_code ignoredEc;	// 에러 정보를 담을 변수.(형식/명시적으로만 사용)
 	socket_.shutdown(tcp::socket::shutdown_both, ignoredEc);	// 소켓의 송-수신을 모두 중단.		
@@ -129,7 +148,7 @@ void ClientSession::HandleLine(const std::string& line)
 {
 	std::size_t delimeterPos = line.find('|');
 	if (delimeterPos == std::string::npos) {
-		Send("SYSTEM | Invalid command format\n");
+		Send("SYSTEM|Invalid command format\n");
 		return;
 	}
 
@@ -138,22 +157,34 @@ void ClientSession::HandleLine(const std::string& line)
 
 	if (command == "NICK") {
 		if (payload.empty()) {
-			Send("SYSTEM | Nickname cannot be empty\n");
+			Send("SYSTEM|Nickname cannot be empty\n");
+			return;
+		}
+
+		auto self = shared_from_this();
+		
+		if (server_ != nullptr && !server_->IsNicknameAvailable(payload, self)) {
+			Send("SYSTEM|Nickname already in use\n");
 			return;
 		}
 
 		bool firstJoin = nickname_.empty();
+		std::string oldNickname = nickname_;
 		nickname_ = payload;
 
 		if (firstJoin) {
 			hasJoined_ = true;
-			Send("SYSTEM | Nickname registered: " + nickname_ + '\n');
+			Send("SYSTEM|Nickname registered: " + nickname_ + '\n');
 			if (server_ != nullptr) {
 				server_->BroadcastSystem(nickname_ + " joined");
 			}
 		}
 		else {
-			Send("SYSTEM | Nickname change to: " + nickname_ + '\n');
+			Send("SYSTEM|Nickname change to: " + nickname_ + '\n');
+
+			if (server_ != nullptr) {
+				server_->BroadcastSystem(oldNickname + " changed nickname to " + nickname_);
+			}
 		}
 
 		return;
@@ -161,12 +192,12 @@ void ClientSession::HandleLine(const std::string& line)
 
 	if (command == "MSG") {
 		if (nickname_.empty()) {
-			Send("SYSTEM | Register nickname first using \"NICK|YourName\"\n");
+			Send("SYSTEM|Register nickname first using \"NICK|YourName\"\n");
 			return;
 		}
 
 		if (payload.empty()) {
-			Send("SYSTEM | Message cannot be empty\n");
+			Send("SYSTEM|Message cannot be empty\n");
 			return;
 		}
 
@@ -177,5 +208,5 @@ void ClientSession::HandleLine(const std::string& line)
 		return;
 	}
 
-	Send("SYSTEM | Unknown command\n");
+	Send("SYSTEM|Unknown command\n");
 }

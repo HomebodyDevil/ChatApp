@@ -20,6 +20,8 @@ public:
 	void BroadcastChat(const std::shared_ptr<ClientSession> fromSession_, const std::string& nickname, const std::string& message);
 	//void Broadcast(std::shared_ptr<ClientSession> session, const std::string& message);
 
+	bool IsNicknameAvailable(const std::string& nickname, const std::shared_ptr<ClientSession>& requester) const;
+
 private:
 	void StartAccept();
 
@@ -28,5 +30,5 @@ private:
 	std::unordered_set<std::shared_ptr<ClientSession>> sessions_;
 
 private:
-	std::mutex sessionsMutex_;
+	mutable std::mutex sessionsMutex_;
 };
