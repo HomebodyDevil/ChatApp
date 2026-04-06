@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <string>
 #include <mutex>
+#include <vector>
 
 class ClientSession;
 
@@ -21,6 +22,7 @@ public:
 	//void Broadcast(std::shared_ptr<ClientSession> session, const std::string& message);
 
 	bool IsNicknameAvailable(const std::string& nickname, const std::shared_ptr<ClientSession>& requester) const;
+	std::vector<std::string> GetNicknames() const;
 
 private:
 	void StartAccept();

@@ -72,6 +72,23 @@ bool ChatServer::IsNicknameAvailable(const std::string& nickname, const std::sha
 	return true;
 }
 
+std::vector<std::string> ChatServer::GetNicknames() const
+{
+	std::lock_guard<std::mutex> lock(sessionsMutex_);
+
+	std::vector<std::string> nicknames{};
+	nicknames.reserve(sessions_.size());
+
+	for (const auto& session : sessions_) {
+		if (session->HasNickname()) {
+			std::string nickname = session->GetNickname();
+			nicknames.push_back(nickname);
+		}
+	}
+
+	return nicknames;
+}
+
 //void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)
 //{
 //	std::lock_guard<std::mutex> lock(sessionsMutex_);

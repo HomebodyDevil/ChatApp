@@ -146,6 +146,26 @@ void ClientSession::Close()
 
 void ClientSession::HandleLine(const std::string& line)
 {
+	// LIST는 param(?)이 필요하지 않으므로, delim을 찾기 전에 수행토록 한다.
+	if (line == "LIST") {
+		if (server_ == nullptr) {
+			Send("SYSTEM|Sever unavailable\n");
+			return;
+		}
+
+		std::vector<std::string> nicknames = server_->GetNicknames();
+
+		std::string payload = "USERS|";
+		for (std::size_t i = 0; i < nicknames.size(); ++i) {
+			payload += nicknames[i];
+			if (i + 1 < nicknames.size())
+				payload += ',';
+		}
+
+		Send(payload + '\n');
+		return;
+	}
+
 	std::size_t delimeterPos = line.find('|');
 	if (delimeterPos == std::string::npos) {
 		Send("SYSTEM|Invalid command format\n");
