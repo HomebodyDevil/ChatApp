@@ -426,13 +426,3 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
-
-# WPF
-# Generated at build time; usually already covered by bin/obj, kept here for clarity
-*.baml
-*.g.cs
-*.g.i.cs
-*.g.resources
-*.generated.cs
-*.xaml.csproj.FileListAbsolute.txt
-App.g.i.cs
