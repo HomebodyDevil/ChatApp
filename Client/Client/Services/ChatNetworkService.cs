@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 
 namespace Client.Services
 {
@@ -13,6 +14,7 @@ namespace Client.Services
         private StreamReader reader;
         private StreamWriter writer;
         private CancellationTokenSource receiveCts;
+        private bool isDisconnecting = false;
 
         public Action<string> MessageReceived;
         public Action<string> ConnectionStatusChanged;
@@ -23,12 +25,16 @@ namespace Client.Services
         {
             try
             {
+                isDisconnecting = false;
+
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(ip, port);
 
+                // BOM이 붙어, 서버측에서 이상하게 해석하게 되는 현상이 있다.
+                // 따라서, Encoding을 없애줬다.
                 NetworkStream networkStream = tcpClient.GetStream();
-                reader = new StreamReader(networkStream, Encoding.UTF8);
-                writer = new StreamWriter(networkStream, Encoding.UTF8)
+                reader = new StreamReader(networkStream, new UTF8Encoding(false));
+                writer = new StreamWriter(networkStream, new UTF8Encoding(false))
                 {
                     AutoFlush = true
                 };
@@ -73,7 +79,9 @@ namespace Client.Services
 
                     if (line == null)
                     {
-                        ConnectionStatusChanged?.Invoke("Disconnected");
+                        if (!isDisconnecting)
+                            ConnectionStatusChanged?.Invoke("Disconnected");
+
                         break;
                     }
 
@@ -82,15 +90,24 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                ConnectionStatusChanged?.Invoke($"Disconnected : {ex.Message}");
+                if (!isDisconnecting)
+                    ConnectionStatusChanged?.Invoke($"Disconnected : {ex.Message}");
             }
             finally
             {
-                Disconnect();
+                // Disconnect();
+                Cleanup();
             }
         }
 
         public void Disconnect()
+        {
+            isDisconnecting = true;
+            Cleanup();
+            ConnectionStatusChanged?.Invoke("Disconnected");
+        }
+
+        private void Cleanup()
         {
             try
             {
@@ -107,8 +124,9 @@ namespace Client.Services
             catch { }
 
             reader = null;
-            writer = null;
+            writer = null; 
             tcpClient = null;
+            receiveCts = null;
         }
     }
 }

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "../include/chat_server.h"
 #include "../include/client_session.h"
 #include <iostream>
@@ -24,8 +22,8 @@ void ChatServer::Leave(const std::shared_ptr<ClientSession>& session)
 {
 	std::lock_guard<std::mutex> lock(sessionsMutex_);
 
-	std::string packet = session->GetNickname() + " left";
-	BroadcastSystem(packet);
+	//std::string packet = session->GetNickname() + " left";
+	//BroadcastSystem(packet);
 
 	sessions_.erase(session);
 	std::cout << "[Server] Sessions left. Current sessions : " << sessions_.size() << '\n';
@@ -33,17 +31,25 @@ void ChatServer::Leave(const std::shared_ptr<ClientSession>& session)
 
 void ChatServer::BroadcastRaw(const std::shared_ptr<ClientSession> fromSession_, const std::string& message)
 {
-	std::lock_guard<std::mutex> lock(sessionsMutex_);
+	std::vector<std::shared_ptr<ClientSession>> sessions;
 
-	for (const auto& session : sessions_) {
-		if (fromSession_ != nullptr && session == fromSession_) continue;
+	{
+		std::lock_guard<std::mutex> lock(sessionsMutex_);
+		sessions.reserve(sessions_.size());
+
+		for (const auto& session : sessions_)
+			sessions.push_back(session);
+	}
+
+	for (const auto& session : sessions) {
+		if (session == nullptr) continue;
 		session->Send(message + '\n');
 	}
 }
 
 void ChatServer::BroadcastSystem(const std::string& message)
 {
-	std::string packet = "SYSTEM| " + message;
+	std::string packet = "SYSTEM|" + message;
 	BroadcastRaw(nullptr, packet);
 
 	std::cout << "[System] " << message << '\n';

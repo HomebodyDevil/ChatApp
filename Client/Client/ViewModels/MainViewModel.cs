@@ -83,6 +83,9 @@ namespace Client.ViewModels
         private readonly RelayCommand refreshusersCommand;
         public RelayCommand RefreshUsersCommand => refreshusersCommand;
 
+        private readonly RelayCommand disconnectCommand;
+        public RelayCommand DisconnectCommand => disconnectCommand;
+
         public MainViewModel()
         {
             networkService = new ChatNetworkService();
@@ -99,6 +102,10 @@ namespace Client.ViewModels
 
             refreshusersCommand = new RelayCommand(
                 async _ => await RefreshUserAsync(),
+                _ => networkService.IsConnected);
+
+            disconnectCommand = new RelayCommand(
+                _ => Disconnect(),
                 _ => networkService.IsConnected);
         }
 
@@ -125,6 +132,16 @@ namespace Client.ViewModels
             {
                 AddChatLog($"[System] Failed to initialize connection : {ex.Message}");
             }
+
+            RefreshCommandStates();
+        }
+
+        private void Disconnect()
+        {
+            networkService?.Disconnect();
+            Users.Clear();
+            AddChatLog("[System] Disconnected by user");
+            RefreshCommandStates();
         }
 
         private async Task SendMessageAsync()
@@ -148,8 +165,10 @@ namespace Client.ViewModels
             }
             catch(Exception ex)
             {
-                AddChatLog($"[System] Send failed : {ex.Message}");
+                AddChatLog($"[System] Send failed : {ex.Message}");                
             }
+
+            RefreshCommandStates();
         }
 
         private async Task RefreshUserAsync()
@@ -182,7 +201,11 @@ namespace Client.ViewModels
             Application.Current.Dispatcher.Invoke(() =>
             {
                 ConnectionStatus = status;
-                refreshusersCommand.RaiseCanExecuteChanged();
+
+                if (status == "Disconnected") Users.Clear();
+
+                RefreshCommandStates();
+                // refreshusersCommand.RaiseCanExecuteChanged();
             });
         }
 
@@ -202,7 +225,7 @@ namespace Client.ViewModels
                     if (parts.Length >= 2)
                     {
                         string systemMessage = string.Join("|", parts, 1, parts.Length - 1);
-                        AddChatLog($"[Syste] {systemMessage}");
+                        AddChatLog($"[System] {systemMessage}");
                     }
                     else
                     {
@@ -242,6 +265,14 @@ namespace Client.ViewModels
         private void AddChatLog(string log)
         {
             ChatLogs.Add(log);
+        }
+
+        private void RefreshCommandStates()
+        {
+            ConnectCommand.RaiseCanExecuteChanged();
+            DisconnectCommand.RaiseCanExecuteChanged();
+            SendCommand.RaiseCanExecuteChanged();
+            RefreshUsersCommand.RaiseCanExecuteChanged();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

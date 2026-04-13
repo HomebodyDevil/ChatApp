@@ -86,16 +86,10 @@ void ClientSession::DoRead()
 void ClientSession::DoWrite()
 {
 	auto self = shared_from_this();
-	std::string messageToSend;
 
-	{
-		std::lock_guard<std::mutex> lock(writeQueueMutex_);
-		if (writeQueue_.empty()) {
-			return;
-		}
-
-		messageToSend = writeQueue_.front();
-	}
+	std::lock_guard<std::mutex> lock(writeQueueMutex_);
+	if (writeQueue_.empty())
+		return;
 
 	boost::asio::async_write(
 		socket_,

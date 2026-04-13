@@ -5,70 +5,105 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Client"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="600" Width="900">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
-
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*"/>
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                    Orientation="Horizontal" Margin="0,0,0,10">
-            <TextBlock Text="IP" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Width="140"
-                     Text="{Binding ServerIp, UpdateSourceTrigger=PropertyChanged}"
-                     Margin="0,0,10,0"/>
+        <StackPanel 
+            Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+            Orientation="Horizontal"
+            Margin="0,0,0,10">
+            <TextBlock 
+                Text="IP" 
+                VerticalAlignment="Center"
+                Margin="0,0,5,0"/>
+            <TextBox
+                Width="140"
+                Text="{Binding ServerIp, UpdateSourceTrigger=PropertyChanged}"
+                Margin="0,0,10,0"/>
 
-            <TextBlock Text="Port" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Width="80"
-                     Text="{Binding ServerPort, UpdateSourceTrigger=PropertyChanged}"
-                     Margin="0,0,10,0"/>
+            <TextBlock
+                Text="Port"
+                VerticalAlignment="Center"
+                Margin="0,0,5,0"/>
+            <TextBox
+                Width="80"
+                Text="{Binding ServerPort, UpdateSourceTrigger=PropertyChanged}"
+                Margin="0,0,10,0"/>
 
-            <TextBlock Text="Nickname" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Width="140"
-                     Text="{Binding Nickname, UpdateSourceTrigger=PropertyChanged}"
-                     Margin="0,0,10,0"/>
+            <TextBlock
+                Text="Nickname"
+                VerticalAlignment="Center"
+                Margin="0,0,5,0"/>
+            <TextBox
+                Width="140"
+                Text="{Binding Nickname, UpdateSourceTrigger=PropertyChanged}"
+                Margin="0,0,10,0"/>
 
-            <Button Content="Connect"
-                    Width="100"
-                    Command="{Binding ConnectCommand}"
-                    Margin="0,0,10,0"/>
-
-            <Button Content="Refresh Users"
-                    Width="120"
-                    Command="{Binding RefreshUsersCommand}"/>
-
-            <TextBlock Text="{Binding ConnectionStatus}"
-                       Margin="15,0,0,0"
-                       VerticalAlignment="Center"/>
+            <Button
+                Content="Connect"
+                Width="100"
+                Command="{Binding ConnectCommand}"
+                Margin="0,0,10,0"/>
+            <Button
+                Content="Disconnect"
+                Width="100"
+                Command="{Binding DisconnectCommand}"
+                Margin="0,0,10,0"
+                />
+            <Button
+                Content="Refresh Users"
+                Width="120"
+                Command="{Binding RefreshUsersCommand}"/>
+            <TextBlock
+                Text="{Binding ConnectionStatus}"
+                Margin="15,0,0,0"
+                VerticalAlignment="Center"/>
         </StackPanel>
 
-        <ListBox Grid.Row="1"
-                 Grid.Column="0"
-                 ItemsSource="{Binding ChatLogs}"
-                 Margin="0,0,10,10"/>
+        <ListBox
+            x:Name="ChatLogListBox"
+            Grid.Row="1" Grid.Column="0"
+            ItemsSource="{Binding ChatLogs}"
+            Margin="0,0,10,10"/>
 
-        <GroupBox Grid.Row="1"
-                  Grid.Column="1"
-                  Header="Users"
-                  Margin="0,0,0,10">
+        <GroupBox
+            Grid.Row="1" Grid.Column="1"
+            Header="Users"
+            Margin="0,0,0,10">
             <ListBox ItemsSource="{Binding Users}"/>
         </GroupBox>
 
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <TextBox Width="700"
-                     Text="{Binding MessageInput, UpdateSourceTrigger=PropertyChanged}"
-                     Margin="0,0,10,0"/>
-
-            <Button Content="Send"
-                    Width="100"
-                    Command="{Binding SendCommand}"/>
-        </StackPanel>
+        <!--<StackPanel
+            Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+            Orientation="Horizontal">
+            <TextBox
+                Width="700"
+                Text="{Binding MessageInput, UpdateSourceTrigger=PropertyChanged}"
+                Margin="0,0,10,0"/>
+            <Button
+                Width="100"
+                Content="Send"
+                Command="{Binding SendCommand}"/>
+        </StackPanel>-->
+        <TextBox
+            x:Name="MessageInputbox"
+            Grid.Row="2" Grid.Column="0"
+            Text="{Binding MessageInput, UpdateSourceTrigger=PropertyChanged}"
+            Margin="0,0,10,0"
+            PreviewKeyDown="MessageInputbox_PreviewKeyDown"/>
+        <Button
+            Grid.Row="2" Grid.Column="1"
+            Width="100"
+            Content="Send"
+            Command="{Binding SendCommand}"/>
     </Grid>
 </Window>
