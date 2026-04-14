@@ -95,19 +95,6 @@ std::vector<std::string> ChatServer::GetNicknames() const
 	return nicknames;
 }
 
-//void ChatServer::Broadcast(std::shared_ptr<ClientSession> fromSession, const std::string& message)
-//{
-//	std::lock_guard<std::mutex> lock(sessionsMutex_);
-//
-//	for (const auto& session : sessions_) {		
-//		if (fromSession != session) {
-//			session->Send(message + '\n');
-//		}
-//	}
-//
-//	std::cout << "[Broadcast] : " << message << '\n';
-//}
-
 void ChatServer::StartAccept()
 {
 	acceptor_.async_accept(

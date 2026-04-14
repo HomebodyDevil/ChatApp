@@ -5,12 +5,15 @@
 
 #include <iostream>
 #include <sstream>
+#include <chrono>
+#include <cctype>
 
 using tcp = boost::asio::ip::tcp;
 
 ClientSession::ClientSession(boost::asio::ip::tcp::socket socket, ChatServer * chatServer)
 	: socket_(std::move(socket))
 	, server_(chatServer)
+	, buffer_(kMaxReadBufferSize)
 { }
 
 void ClientSession::Start()
@@ -24,6 +27,14 @@ void ClientSession::Send(const std::string& message)
 
 	{
 		std::lock_guard<std::mutex> lock(writeQueueMutex_);
+
+		if (writeQueue_.size() >= kMaxWriteQueueSize)
+		{
+			std::cerr << "[Session] Write queue overflow.\n";
+			// Close();
+			return;
+		}
+
 		writeInProgress = !writeQueue_.empty();
 		writeQueue_.push_back(message);
 	}
@@ -73,6 +84,14 @@ void ClientSession::DoRead()
 
 			if (!line.empty() && line.back() == '\r') {
 				line.pop_back();
+			}
+
+			if (line.size() > kMaxLineLength)
+			{
+				Send("SYSTEM|Input too long\n");
+				// Close();
+				DoRead();
+				return;
 			}
 
 			std::cout << "[Recv - " << socket_.remote_endpoint() << "] : " << line << '\n';
@@ -140,6 +159,8 @@ void ClientSession::Close()
 
 void ClientSession::HandleLine(const std::string& line)
 {
+	auto self = shared_from_this();
+
 	// LIST는 param(?)이 필요하지 않으므로, delim을 찾기 전에 수행토록 한다.
 	if (line == "LIST") {
 		if (server_ == nullptr) {
@@ -175,7 +196,12 @@ void ClientSession::HandleLine(const std::string& line)
 			return;
 		}
 
-		auto self = shared_from_this();
+		if (!IsValidNIckname(payload))
+		{
+			Send("SYSTEM|Nickname must be 2-16 chars and contain only letters, numbers, underscore\n");
+			return;
+		}
+		// auto self = shared_from_this();
 		
 		if (server_ != nullptr && !server_->IsNicknameAvailable(payload, self)) {
 			Send("SYSTEM|Nickname already in use\n");
@@ -210,10 +236,15 @@ void ClientSession::HandleLine(const std::string& line)
 			return;
 		}
 
-		if (payload.empty()) {
-			Send("SYSTEM|Message cannot be empty\n");
+		if (!IsValidMessage(payload))
+		{
+			Send("SYSTEM|Invalid message. Max 200 chars, control characters are not allowed\n");
 			return;
 		}
+		//if (payload.empty()) {
+		//	Send("SYSTEM|Message cannot be empty\n");
+		//	return;
+		//}
 
 		if (server_ != nullptr) {
 			server_->BroadcastChat(shared_from_this(), nickname_, payload);
@@ -223,4 +254,58 @@ void ClientSession::HandleLine(const std::string& line)
 	}
 
 	Send("SYSTEM|Unknown command\n");
+}
+
+bool ClientSession::IsValidNIckname(const std::string& nickname) const
+{
+	if (nickname.size() < kMinNicknameLength || nickname.size() > kMaxNicknameLength) return false;
+
+	for (char c : nickname)
+	{
+		unsigned char uc = static_cast<unsigned char>(c);
+
+		// 문자(나 숫자)가 아니거나 공백이 포함돼있으면 안 됨.
+		if (!(std::isalnum(uc) || c == ' ')) return false;
+	}
+
+	return true;
+}
+
+bool ClientSession::IsValidMessage(const std::string& message) const
+{
+	if (message.empty() || message.size() > kMaxMessageLength) return false;
+
+	for (char c : message)
+	{
+		unsigned char uc = static_cast<unsigned char>(c);
+
+		// 공백(' ')은 허용. 나머제 지어 문자는 차단.
+		if ((c < 32 && c != ' ') || uc == 127) return false;
+	}
+
+	return true;
+}
+
+bool ClientSession::IsRateLimited()
+{
+	using namespace std::chrono;
+
+	const auto now = steady_clock::now();
+
+	// 최근 kRateLimitWindowSeconds초 동안을 검사한다.
+	const auto windowStart = now - seconds(kRateLimitWindowSeconds);
+
+	// 최근 kRateLimitWindowSeconds초 외의 것들은 기록에서 제거한다.
+	while (!messageTimestamps_.empty() && messageTimestamps_.front() < windowStart)
+	{
+		messageTimestamps_.pop_front();
+	}
+
+	// 제한한다.
+	if (messageTimestamps_.size() >= kMaxMessagePerWindow)
+		return true;
+
+	// 아니면 기록 추가.
+	messageTimestamps_.push_back(now);
+	return false;
 }

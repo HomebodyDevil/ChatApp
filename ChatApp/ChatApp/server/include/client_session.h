@@ -26,6 +26,21 @@ private:
 	void HandleLine(const std::string& line);
 
 private:
+	bool IsValidNIckname(const std::string& nickname) const;
+	bool IsValidMessage(const std::string& message) const;
+	bool IsRateLimited();
+
+private:
+	static constexpr std::size_t kMaxReadBufferSize = 1024;
+	static constexpr std::size_t kMaxLineLength = 512;
+	static constexpr std::size_t kMaxNicknameLength = 16;
+	static constexpr std::size_t kMinNicknameLength = 2;
+	static constexpr std::size_t kMaxMessageLength = 200;
+	static constexpr std::size_t kMaxWriteQueueSize = 100;
+	static constexpr std::size_t kMaxMessagePerWindow = 5;
+	static constexpr int kRateLimitWindowSeconds = 10;
+
+private:
 	boost::asio::ip::tcp::socket socket_;
 	boost::asio::streambuf buffer_;
 	ChatServer* server_;
@@ -35,6 +50,9 @@ private:
 
 private:
 	bool isClosed_ = false;
+
+private:
+	std::deque<std::chrono::steady_clock::time_point> messageTimestamps_;
 
 private:
 	std::mutex writeQueueMutex_;
